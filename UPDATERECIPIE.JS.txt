@@ -1,0 +1,139 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import './updateRecipe.css';
+
+function UpdateRecipe({ recipes, setRecipes }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
+    title: '',
+    image: '',
+    description: '',
+    ingredients: '',
+    instructions: '',
+    cookingTime: '',
+    servings: ''
+  });
+
+  useEffect(() => {
+    if (recipes.length === 0) return; // wait if recipes not loaded yet
+
+    // Find recipe by _id instead of id
+    const recipe = recipes.find(r => r._id === id);
+    if (recipe) {
+      setFormData({
+        ...recipe,
+        ingredients: recipe.ingredients.join(', '),
+        instructions: recipe.instructions.join('. ')
+      });
+    } else {
+      alert('Recipe not found');
+      navigate('/');
+    }
+  }, [id, recipes, navigate]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const updatedRecipe = {
+      ...formData,
+      ingredients: formData.ingredients.split(',').map(i => i.trim()),
+      instructions: formData.instructions.split('.').map(i => i.trim()),
+      cookingTime: Number(formData.cookingTime) || 0,
+      servings: Number(formData.servings) || 0,
+    };
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/recipes/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedRecipe),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update recipe');
+      }
+
+      const data = await response.json();
+
+      // Update local state by matching _id
+      const updatedList = recipes.map(r => (r._id === id ? data : r));
+      setRecipes(updatedList);
+
+      alert('Recipe updated!');
+      navigate(`/view/${id}`);
+    } catch (error) {
+      alert(`Error updating recipe: ${error.message}`);
+    }
+  };
+
+  return (
+  <div className="update-recipe-container">
+    <div className="update-recipe-form">
+      <h2 style={{  color: '#2c3e50'}}>Update Recipe</h2>
+      <form onSubmit={handleSubmit}>
+        <input
+          name="title"
+          value={formData.title}
+          onChange={handleChange}
+          placeholder="Title"
+          required
+        /><br /><br />
+        <input
+          name="image"
+          value={formData.image}
+          onChange={handleChange}
+          placeholder="Image URL"
+        /><br /><br />
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          placeholder="Description"
+          rows={3}
+        /><br /><br />
+        <textarea
+          name="ingredients"
+          value={formData.ingredients}
+          onChange={handleChange}
+          placeholder="Ingredients (comma separated)"
+          rows={2}
+        /><br /><br />
+        <textarea
+          name="instructions"
+          value={formData.instructions}
+          onChange={handleChange}
+          placeholder="Instructions (period separated)"
+          rows={3}
+        /><br /><br />
+        <input
+          name="cookingTime"
+          value={formData.cookingTime}
+          onChange={handleChange}
+          placeholder="Cooking Time (minutes)"
+          type="number"
+          min="0"
+        /><br /><br />
+        <input
+          name="servings"
+          value={formData.servings}
+          onChange={handleChange}
+          placeholder="Servings"
+          type="number"
+          min="0"
+        /><br /><br />
+        <button type="submit">Update Recipe</button>
+      </form>
+    </div>
+  </div>
+);
+}
+
+export default UpdateRecipe;
